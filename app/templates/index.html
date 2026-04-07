@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Video and Labels Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Sora:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body data-video-hls-url="{{ video_hls_url }}" data-refresh-ms="{{ refresh_ms }}">
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+
+  <header class="topbar">
+    <div class="brand-block">
+      <p class="eyebrow">Vision Console</p>
+      <h1>Video and UDP Labels Dashboard</h1>
+    </div>
+    <div class="status-pill" id="listener-pill">Listener: Unknown</div>
+  </header>
+
+  <main class="grid-layout">
+    <section class="panel panel-video">
+      <div class="panel-head">
+        <h2>Live Camera Feed</h2>
+        <span class="chip">MediaMTX HLS</span>
+      </div>
+      <div class="video-controls">
+        <label class="field-label" for="video-source-input">Video Source URL</label>
+        <div class="video-controls-row">
+          <input id="video-source-input" class="field-input" type="url" placeholder="http://localhost:8888/dronecam/index.m3u8" autocomplete="off">
+          <button id="btn-load-video" class="btn btn-primary" type="button">Load Source</button>
+          <a id="video-open-link" class="btn btn-ghost link-btn" href="#" target="_blank" rel="noopener noreferrer">Open URL</a>
+        </div>
+      </div>
+      <div class="video-shell">
+        <video id="live-video" controls autoplay muted playsinline></video>
+      </div>
+      <p class="panel-note">Source: <span id="video-url"></span></p>
+      <p class="panel-error" id="video-error"></p>
+    </section>
+
+    <section class="panel panel-labels">
+      <div class="panel-head">
+        <h2>UDP Labels</h2>
+        <span class="chip">Auto Refresh</span>
+      </div>
+      <p class="panel-note">Listening on: <span id="label-bind">-</span></p>
+      <p class="panel-note">CSV Log: <span id="label-csv-path">-</span></p>
+      <div class="table-wrap labels-wrap">
+        <table>
+          <thead>
+            <tr>
+              <td>Time</td>
+              <td>Sender</td>
+              <td>Label</td>
+            </tr>
+          </thead>
+          <tbody id="labels-body"></tbody>
+        </table>
+      </div>
+      <p class="panel-note" id="labels-meta">No labels received yet.</p>
+      <p class="panel-note" id="labels-updated">Last update: -</p>
+      <p class="panel-error" id="labels-error"></p>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
