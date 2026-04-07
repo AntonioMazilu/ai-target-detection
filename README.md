@@ -76,11 +76,36 @@ If your camera already outputs RTSP, publish/relay it into the `livecam` path an
 - `GET /api/health`
 - `GET /api/labels/recent?limit=20`
 
+## Build Images Separately
+
+Build only the web app image:
+
+```bash
+docker build -t vision-dashboard:local ./app
+```
+
+Build only the YOLO UDP sender image:
+
+```bash
+docker build -t yolo-udp-sender:local ./yolo-udp-sender
+```
+
+These are independent images; building one does not build the other.
+
 ## YOLO UDP Sender Container
 
 An additional sender project is included in [yolo-udp-sender/README.md](yolo-udp-sender/README.md).
 
 It packages your `tonisateliot.py` script as a Docker image and includes a GitHub Actions workflow to publish a free public image on GitHub Container Registry.
+
+## GHCR Publish Workflows
+
+- Web app image workflow: `.github/workflows/publish-web-app.yml`
+	- Image: `ghcr.io/<your-github-username>/vision-dashboard`
+	- Tag trigger: `app-v*` (example: `app-v1.0.0`)
+- YOLO sender image workflow: `.github/workflows/publish-yolo-udp-sender.yml`
+	- Image: `ghcr.io/<your-github-username>/yolo-udp-sender`
+	- Tag trigger: `yolo-v*` (example: `yolo-v1.0.0`)
 
 ## UDP Label Listener
 

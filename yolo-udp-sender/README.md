@@ -58,8 +58,8 @@ Steps:
 3. Create a tag and push it:
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag yolo-v1.0.0
+git push origin yolo-v1.0.0
 ```
 
 After workflow success, the image can be pulled by anyone:
