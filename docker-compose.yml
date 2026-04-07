@@ -2,13 +2,16 @@ services:
   web:
     build:
       context: ./app
-    container_name: drone-dashboard
+    container_name: vision-dashboard
     restart: unless-stopped
+    command: gunicorn --reload -w 1 -b 0.0.0.0:8000 run:app
+    volumes:
+      - ./app:/app
     ports:
       - "8000:8000"
       - "20000:20000/udp"
     environment:
-      VIDEO_HLS_URL: ${VIDEO_HLS_URL:-http://localhost:8888/dronecam/index.m3u8}
+      VIDEO_HLS_URL: ${VIDEO_HLS_URL:-http://localhost:8888/livecam/index.m3u8}
       DASHBOARD_REFRESH_MS: ${DASHBOARD_REFRESH_MS:-2000}
       UDP_LABEL_BIND_IP: ${UDP_LABEL_BIND_IP:-0.0.0.0}
       UDP_LABEL_BIND_PORT: ${UDP_LABEL_BIND_PORT:-20000}
@@ -17,14 +20,3 @@ services:
       UDP_LABEL_CSV_PATH: ${UDP_LABEL_CSV_PATH:-/app/udp_listener_log.csv}
     extra_hosts:
       - "host.docker.internal:host-gateway"
-
-  mediamtx:
-    image: bluenviron/mediamtx:latest
-    container_name: drone-mediamtx
-    restart: unless-stopped
-    ports:
-      - "8554:8554"
-      - "8888:8888"
-      - "8889:8889"
-    volumes:
-      - ./mediamtx/mediamtx.yml:/mediamtx.yml:ro

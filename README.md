@@ -5,7 +5,7 @@ A production-style, responsive Flask web application that:
 - Shows camera video coming from a MediaMTX server.
 - Listens for UDP label messages and logs them to CSV.
 - Displays incoming labels live in the web UI.
-- Runs the app and MediaMTX with Docker Compose.
+- Runs the app with Docker Compose (MediaMTX can run separately via Docker command).
 
 ## Stack
 
@@ -31,8 +31,6 @@ A production-style, responsive Flask web application that:
 │   └── templates
 │       └── index.html
 ├── docker-compose.yml
-├── mediamtx
-│   └── mediamtx.yml
 └── .env.example
 ```
 
@@ -50,22 +48,28 @@ cp .env.example .env
 docker compose up --build
 ```
 
-3. Open the dashboard:
+3. Run MediaMTX separately (if not already running):
+
+```bash
+docker run --rm -it --network=host bluenviron/mediamtx:1
+```
+
+4. Open the dashboard:
 
 - App: http://localhost:8000
-- HLS stream URL default: http://localhost:8888/dronecam/index.m3u8
+- HLS stream URL default: http://localhost:8888/livecam/index.m3u8
 
 ## Publishing Video to MediaMTX
 
-MediaMTX path is `dronecam` by default.
+MediaMTX path is `livecam` by default.
 
 Example publish command (from host):
 
 ```bash
-ffmpeg -re -stream_loop -1 -i sample.mp4 -c:v libx264 -preset veryfast -tune zerolatency -c:a aac -f rtsp rtsp://localhost:8554/dronecam
+ffmpeg -re -stream_loop -1 -i sample.mp4 -c:v libx264 -preset veryfast -tune zerolatency -c:a aac -f rtsp rtsp://localhost:8554/livecam
 ```
 
-If your drone camera already outputs RTSP, publish/relay it into the `dronecam` path and the web app will display it.
+If your camera already outputs RTSP, publish/relay it into the `livecam` path and the web app will display it.
 
 ## API Endpoints
 

@@ -46,6 +46,11 @@ This repository includes a GitHub Actions workflow that publishes:
 - `ghcr.io/<your-github-username>/yolo-udp-sender:latest`
 - `ghcr.io/<your-github-username>/yolo-udp-sender:<git-tag>`
 
+Published images support:
+
+- `linux/amd64`
+- `linux/arm64` (Raspberry Pi 64-bit OS)
+
 Steps:
 
 1. Push this repository to your GitHub account.

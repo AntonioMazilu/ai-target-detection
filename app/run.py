@@ -25,7 +25,7 @@ def create_app() -> Flask:
     def index():
         return render_template(
             "index.html",
-            video_hls_url=os.getenv("VIDEO_HLS_URL", "http://localhost:8888/dronecam/index.m3u8"),
+            video_hls_url=os.getenv("VIDEO_HLS_URL", "http://localhost:8888/livecam/index.m3u8"),
             refresh_ms=int(os.getenv("DASHBOARD_REFRESH_MS", "2000")),
         )
 

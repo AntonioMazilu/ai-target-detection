@@ -144,13 +144,6 @@ body {
   font-weight: 600;
 }
 
-.config-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.65rem;
-  margin-bottom: 0.8rem;
-}
-
 .field-label {
   display: block;
   margin: 0 0 0.35rem;
@@ -176,30 +169,6 @@ body {
 .field-input:focus {
   border-color: rgba(15, 118, 110, 0.8);
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.16);
-}
-
-.control-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.8rem;
-  margin-bottom: 0.9rem;
-  padding: 0.65rem 0.75rem;
-  border-radius: 0.8rem;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.7);
-}
-
-.endpoint {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--muted);
-  overflow-wrap: anywhere;
-}
-
-.action-row {
-  display: flex;
-  gap: 0.5rem;
 }
 
 .btn {
@@ -264,16 +233,6 @@ body {
   background: #f3f6f2;
 }
 
-.btn-accent {
-  background: linear-gradient(135deg, #c2410c, #9a3412);
-  color: #fff6ec;
-  box-shadow: 0 8px 18px rgba(154, 52, 18, 0.22);
-}
-
-.btn-accent:hover:not(:disabled) {
-  box-shadow: 0 10px 24px rgba(154, 52, 18, 0.28);
-}
-
 .link-btn {
   text-decoration: none;
   display: inline-flex;
@@ -302,32 +261,6 @@ body {
   width: 100%;
   aspect-ratio: 16 / 9;
   display: block;
-}
-
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.7rem;
-  margin-bottom: 0.8rem;
-}
-
-.kpi {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 0.8rem;
-  padding: 0.7rem;
-}
-
-.kpi p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-
-.kpi strong {
-  display: inline-block;
-  margin-top: 0.3rem;
-  font-size: 1rem;
 }
 
 .table-wrap {
@@ -369,16 +302,6 @@ td:first-child {
   margin: 0.4rem 0 0;
   color: var(--danger);
   font-size: 0.82rem;
-}
-
-.labels-section {
-  margin-top: 1rem;
-  border-top: 1px solid var(--line);
-  padding-top: 0.9rem;
-}
-
-.panel-head-sub {
-  margin-bottom: 0.5rem;
 }
 
 .labels-wrap {
@@ -423,23 +346,6 @@ td:first-child {
   .topbar {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .kpi-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .config-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .control-bar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .action-row {
-    width: 100%;
   }
 
   .btn {
