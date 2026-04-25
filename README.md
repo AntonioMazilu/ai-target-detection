@@ -1,131 +1,113 @@
-# Video and UDP Labels Dashboard
+# AI Target Detection Stack
 
-A production-style, responsive Flask web application that:
+Dockerized pipeline for:
 
-- Shows camera video coming from a MediaMTX server.
-- Listens for UDP label messages and logs them to CSV.
-- Displays incoming labels live in the web UI.
-- Runs the app with Docker Compose (MediaMTX can run separately via Docker command).
+- YOLOv8 detection on a Jetson node.
+- Annotated video stream publishing to MediaMTX (RTSP -> HLS).
+- UDP text detection messages to a dashboard.
+- Web dashboard that displays both video and detection text.
 
-## Stack
+## Components
 
-- Backend: Flask
-- Frontend: HTML/CSS/JS (responsive dashboard)
-- Video: MediaMTX (RTSP ingest, HLS playback)
-- Runtime: Docker + Docker Compose
+- `app/`: Flask dashboard (video + detection text table).
+- `yolo-udp-sender/`: Jetson-side YOLO sender image.
+- `docker-compose.yml`: Dashboard container for the portal machine.
 
-## Project Structure
+## Architecture
 
-```
-.
-├── app
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── run.py
-│   ├── udp_label_listener.py
-│   ├── static
-│   │   ├── css
-│   │   │   └── style.css
-│   │   └── js
-│   │       └── dashboard.js
-│   └── templates
-│       └── index.html
-├── docker-compose.yml
-└── .env.example
-```
+1. Jetson sender container reads camera/video input.
+2. Sender runs YOLO and publishes annotated stream to MediaMTX:
+   - `rtsp://<portal-host>:8554/livecam`
+3. MediaMTX exposes HLS playback:
+   - `http://<portal-host>:8888/livecam/index.m3u8`
+4. Sender also sends text labels over UDP to dashboard listener:
+   - `<portal-host>:20000/udp`
+5. Dashboard shows live HLS video and received labels.
 
-## Quick Start
+## Dashboard Quick Start (Portal Machine)
 
-1. Create your env file:
+1. Create env file:
 
 ```bash
 cp .env.example .env
 ```
 
-2. Start services:
+2. Start dashboard container:
 
 ```bash
-docker compose up --build
+docker compose up -d --build
 ```
 
-3. Run MediaMTX separately (if not already running):
+3. Open:
+
+- Dashboard: `http://localhost:200`
+
+## MediaMTX (Portal Machine)
+
+Run MediaMTX as Docker:
 
 ```bash
-docker run --rm -it --network=host bluenviron/mediamtx:1
+docker run -d --name mediamtx --restart unless-stopped \
+  -p 1935:1935 -p 8554:8554 -p 8888:8888 -p 8889:8889 -p 8890:8890/udp \
+  bluenviron/mediamtx:latest
 ```
 
-4. Open the dashboard:
+## Jetson Sender Container
 
-- App: http://localhost:8000
-- HLS stream URL default: http://localhost:8888/livecam/index.m3u8
-
-## Publishing Video to MediaMTX
-
-MediaMTX path is `livecam` by default.
-
-Example publish command (from host):
-
-```bash
-ffmpeg -re -stream_loop -1 -i sample.mp4 -c:v libx264 -preset veryfast -tune zerolatency -c:a aac -f rtsp rtsp://localhost:8554/livecam
-```
-
-If your camera already outputs RTSP, publish/relay it into the `livecam` path and the web app will display it.
-
-## API Endpoints
-
-- `GET /api/health`
-- `GET /api/labels/recent?limit=20`
-
-## Build Images Separately
-
-Build only the web app image:
-
-```bash
-docker build -t vision-dashboard:local ./app
-```
-
-Build only the YOLO UDP sender image:
+Build locally:
 
 ```bash
 docker build -t yolo-udp-sender:local ./yolo-udp-sender
 ```
 
-These are independent images; building one does not build the other.
-
-## YOLO UDP Sender Container
-
-An additional sender project is included in [yolo-udp-sender/README.md](yolo-udp-sender/README.md).
-
-It packages your `tonisateliot.py` script as a Docker image and includes a GitHub Actions workflow to publish a free public image on GitHub Container Registry.
-
-## GHCR Publish Workflows
-
-- Web app image workflow: `.github/workflows/publish-web-app.yml`
-	- Image: `ghcr.io/<your-github-username>/vision-dashboard`
-	- Tag trigger: `app-v*` (example: `app-v1.0.0`)
-- YOLO sender image workflow: `.github/workflows/publish-yolo-udp-sender.yml`
-	- Image: `ghcr.io/<your-github-username>/yolo-udp-sender`
-	- Tag trigger: `yolo-v*` (example: `yolo-v1.0.0`)
-
-## UDP Label Listener
-
-The app includes your UDP listener behavior on:
-
-- IP: `0.0.0.0`
-- Port: `20000`
-
-Incoming labels are shown live in the dashboard and appended to CSV at:
-
-- `/app/udp_listener_log.csv` inside the web container.
-
-Example test packet from host:
+Run on Jetson:
 
 ```bash
-echo "target-detected" | nc -u -w1 localhost 20000
+docker run --rm -it --network host \
+  -e PORTAL_HOST=<portal-tailscale-ip> \
+  -e UDP_PORT=20000 \
+  -e SOURCE=0 \
+  -e YOLO_MODEL=yolov8n.pt \
+  -e CONF=0.45 \
+  -e IMGSZ=640 \
+  -e COOLDOWN=2 \
+  -e STREAM_FPS=20 \
+  -e HEALTH_PORT=8080 \
+  yolo-udp-sender:local
 ```
 
-## Notes
+If using Tailscale, set `PORTAL_HOST` to the portal Tailscale IP.
+The sender then auto-targets both endpoints on that host:
 
-- The UI is mobile-first and scales cleanly to phones, tablets, and laptops/desktops.
-- Dashboard refresh interval is configurable with `DASHBOARD_REFRESH_MS`.
-- Video playback uses HLS.js with Safari native HLS fallback.
+- RTSP publish: `rtsp://PORTAL_HOST:8554/livecam`
+- UDP labels: `PORTAL_HOST:20000`
+
+### AMS App Fields (Jetson Sender)
+
+When creating the sender application in AMS, use:
+
+- Docker image: your pushed sender image.
+- Service/container port: `8080` (health endpoint).
+- Environment variables: `PORTAL_HOST`, `UDP_PORT`, `SOURCE`, `YOLO_MODEL`, `CONF`, `IMGSZ`, `COOLDOWN`, `STREAM_FPS`, optionally `STREAM_WIDTH`, `STREAM_HEIGHT`, `UDP_IP`, `MEDIA_MTX_RTSP_URL`.
+
+## Dashboard Environment Variables
+
+- `VIDEO_HLS_URL` default is auto-derived from the request host (or can be set explicitly)
+- `DASHBOARD_REFRESH_MS` default `2000`
+- `UDP_LABEL_BIND_IP` default `0.0.0.0`
+- `UDP_LABEL_BIND_PORT` default `20000`
+- `UDP_LABEL_BUFFER_SIZE` default `4096`
+- `UDP_LABEL_MAX_RECENT` default `120`
+- `UDP_LABEL_CSV_PATH` default `/app/udp_listener_log.csv`
+
+## APIs
+
+- `GET /api/health`
+- `GET /api/labels/recent?limit=20`
+
+## Image Publishing Workflows
+
+- `.github/workflows/publish-web-app.yml`
+  - `ghcr.io/<your-github-username>/vision-dashboard`
+- `.github/workflows/publish-yolo-udp-sender.yml`
+  - `ghcr.io/<your-github-username>/yolo-udp-sender`

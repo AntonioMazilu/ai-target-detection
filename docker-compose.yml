@@ -4,14 +4,15 @@ services:
       context: ./app
     container_name: vision-dashboard
     restart: unless-stopped
-    command: gunicorn --reload -w 1 -b 0.0.0.0:8000 run:app
+    command: flask --app run.py --debug run --host=0.0.0.0 --port=200
     volumes:
       - ./app:/app
     ports:
-      - "8000:8000"
+      - "200:200"
       - "20000:20000/udp"
     environment:
-      VIDEO_HLS_URL: ${VIDEO_HLS_URL:-http://localhost:8888/livecam/index.m3u8}
+      FLASK_DEBUG: "1"
+      VIDEO_HLS_URL: ${VIDEO_HLS_URL:-}
       DASHBOARD_REFRESH_MS: ${DASHBOARD_REFRESH_MS:-2000}
       UDP_LABEL_BIND_IP: ${UDP_LABEL_BIND_IP:-0.0.0.0}
       UDP_LABEL_BIND_PORT: ${UDP_LABEL_BIND_PORT:-20000}

@@ -12,8 +12,10 @@ RUN apt-get update \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY tonisateliot.py /app/tonisateliot.py
+COPY yolo_stream_sender.py /app/yolo_stream_sender.py
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
+
+EXPOSE 8080
 
 ENTRYPOINT ["/app/entrypoint.sh"]
