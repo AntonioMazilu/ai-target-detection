@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import http.server
+import json
 import socket
 import socketserver
 import subprocess
@@ -113,6 +114,29 @@ def best_detection(result, names) -> Optional[Tuple[str, float, int]]:
     class_id = int(boxes.cls[top_idx].item())
     class_name = names[class_id] if isinstance(names, dict) else names[class_id]
     return str(class_name), float(confidences[top_idx]), len(confidences)
+
+
+def build_detection_payload(
+    *,
+    label: str,
+    confidence: float,
+    count: int,
+    source: str,
+    rtsp_url: str,
+    udp_ip: str,
+    udp_port: int,
+    timestamp: float,
+) -> str:
+    payload = {
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(timestamp)),
+        "label": label,
+        "confidence": round(confidence, 4),
+        "count": int(count),
+        "source": source,
+        "rtsp_url": rtsp_url,
+        "udp_target": f"{udp_ip}:{udp_port}",
+    }
+    return json.dumps(payload, separators=(",", ":"))
 
 
 class RtspPublisher:
@@ -278,18 +302,29 @@ def main() -> None:
                 label, confidence, count = detection
                 now = time.time()
                 if now - last_sent_at >= args.cooldown:
-                    message_text = f"{label} conf={confidence:.2f} count={count}"
+                    message_text = build_detection_payload(
+                        label=label,
+                        confidence=confidence,
+                        count=count,
+                        source=str(args.source),
+                        rtsp_url=args.rtsp_url,
+                        udp_ip=args.udp_ip,
+                        udp_port=args.udp_port,
+                        timestamp=now,
+                    )
                     udp_socket.sendto(message_text.encode("utf-8"), (args.udp_ip, args.udp_port))
+
+                    log_label = f"{label} conf={confidence:.2f} count={count}"
 
                     timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now))
                     append_csv_row(
                         csv_path=csv_path,
                         timestamp=timestamp,
-                        label=message_text,
+                        label=log_label,
                         udp_ip=args.udp_ip,
                         udp_port=args.udp_port,
                     )
-                    print(f"[{timestamp}] Sent label: {message_text}")
+                    print(f"[{timestamp}] Sent detection payload: {message_text}")
                     last_sent_at = now
 
             out_frame = annotated

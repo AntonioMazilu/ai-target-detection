@@ -1,73 +1,70 @@
 # YOLO Stream + UDP Sender
 
-Standalone container image for Jetson/Raspberry Pi nodes.
+Standalone container image for Jetson or other edge nodes.
 
-The sender does two things at the same time:
+## What It Does
 
-- Runs YOLOv8 detection.
-- Sends text detections over UDP (for the dashboard labels table).
-- Publishes annotated video as RTSP to MediaMTX.
+- Captures frames from a camera or stream source.
+- Runs YOLOv8 inference.
+- Publishes annotated video to MediaMTX over RTSP.
+- Sends detection payloads over UDP as JSON.
 
-## Build Locally
+## UDP Payload Example
+
+```json
+{
+  "timestamp": "2026-04-27T18:31:11Z",
+  "label": "person",
+  "confidence": 0.8723,
+  "count": 2,
+  "source": "/dev/video0",
+  "rtsp_url": "rtsp://100.117.91.117:8554/livecam",
+  "udp_target": "100.117.91.117:20000"
+}
+```
+
+## Build
 
 ```bash
 docker build -t yolo-udp-sender:local ./yolo-udp-sender
 ```
 
-## Run Locally (Host Network)
-
-Use host networking so camera, UDP and RTSP routing are straightforward on Linux.
+## Run (Linux Host Network)
 
 ```bash
-docker run --rm -it --network host \
-  -e PORTAL_HOST=127.0.0.1 \
+docker run --rm -it --network host --privileged \
+  --device /dev:/dev \
+  -e PORTAL_HOST=100.117.91.117 \
   -e UDP_PORT=20000 \
-  -e SOURCE=0 \
+  -e SOURCE=/dev/video0 \
   -e YOLO_MODEL=yolov8n.pt \
   -e CONF=0.45 \
   -e IMGSZ=640 \
-  -e COOLDOWN=2 \
+  -e COOLDOWN=1.5 \
   -e STREAM_FPS=20 \
+  -e HEALTH_PORT=8080 \
   yolo-udp-sender:local
 ```
 
-For a remote portal host, set `PORTAL_HOST`.
-Example: `PORTAL_HOST=100.104.203.108`
+When `PORTAL_HOST` is set, the entrypoint auto-targets both:
 
-When `PORTAL_HOST` is set, the entrypoint auto-configures both targets:
-
-- RTSP video target: `rtsp://PORTAL_HOST:8554/livecam`
-- UDP text target: `PORTAL_HOST:20000`
-
-You can still override either target explicitly with `MEDIA_MTX_RTSP_URL` and `UDP_IP`.
+- RTSP publish: `rtsp://PORTAL_HOST:8554/livecam`
+- UDP labels: `PORTAL_HOST:20000`
 
 ## Environment Variables
 
-- `PORTAL_HOST` (optional; default source host for both UDP and RTSP targets)
-- `UDP_IP` (default: `127.0.0.1`)
+- `PORTAL_HOST` (optional, preferred when using Tailscale)
+- `UDP_IP` (optional override)
 - `UDP_PORT` (default: `20000`)
-- `MEDIA_MTX_RTSP_URL` (default: `rtsp://127.0.0.1:8554/livecam`)
-- `RTSP_TRANSPORT` (default: `tcp`, values: `tcp|udp`)
+- `MEDIA_MTX_RTSP_URL` (optional override)
+- `RTSP_TRANSPORT` (default: `tcp`)
 - `YOLO_MODEL` (default: `yolov8n.pt`)
 - `SOURCE` (default: `0`)
 - `CONF` (default: `0.45`)
 - `IMGSZ` (default: `640`)
 - `COOLDOWN` (default: `10.0`)
 - `STREAM_FPS` (default: `20`)
-- `STREAM_WIDTH` (default: `0`, keep source width)
-- `STREAM_HEIGHT` (default: `0`, keep source height)
+- `STREAM_WIDTH` / `STREAM_HEIGHT` (default: source size)
 - `LOG_CSV_PATH` (default: `/app/yolo_stream_sender_log.csv`)
 - `HEALTH_PORT` (default: `8080`, set `0` to disable)
 - `SHOW` (default: `0`)
-
-## Publish Public Image to GitHub Container Registry
-
-This repository includes a GitHub Actions workflow that publishes:
-
-- `ghcr.io/<your-github-username>/yolo-udp-sender:latest`
-- `ghcr.io/<your-github-username>/yolo-udp-sender:<git-tag>`
-
-Published images support:
-
-- `linux/amd64`
-- `linux/arm64`

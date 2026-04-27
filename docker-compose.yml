@@ -1,23 +1,26 @@
 services:
-  web:
+  yolo_sender:
     build:
-      context: ./app
-    container_name: vision-dashboard
+      context: ./yolo-udp-sender
+    container_name: yolo-udp-sender
     restart: unless-stopped
-    command: flask --app run.py --debug run --host=0.0.0.0 --port=200
-    volumes:
-      - ./app:/app
-    ports:
-      - "200:200"
-      - "20000:20000/udp"
+    network_mode: host
+    privileged: true
+    devices:
+      - /dev:/dev
     environment:
-      FLASK_DEBUG: "1"
-      VIDEO_HLS_URL: ${VIDEO_HLS_URL:-}
-      DASHBOARD_REFRESH_MS: ${DASHBOARD_REFRESH_MS:-2000}
-      UDP_LABEL_BIND_IP: ${UDP_LABEL_BIND_IP:-0.0.0.0}
-      UDP_LABEL_BIND_PORT: ${UDP_LABEL_BIND_PORT:-20000}
-      UDP_LABEL_BUFFER_SIZE: ${UDP_LABEL_BUFFER_SIZE:-4096}
-      UDP_LABEL_MAX_RECENT: ${UDP_LABEL_MAX_RECENT:-120}
-      UDP_LABEL_CSV_PATH: ${UDP_LABEL_CSV_PATH:-/app/udp_listener_log.csv}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      PORTAL_HOST: ${PORTAL_HOST}
+      UDP_PORT: ${UDP_PORT:-20000}
+      SOURCE: ${SOURCE:-/dev/video0}
+      YOLO_MODEL: ${YOLO_MODEL:-yolov8n.pt}
+      CONF: ${CONF:-0.45}
+      IMGSZ: ${IMGSZ:-640}
+      COOLDOWN: ${COOLDOWN:-1.5}
+      STREAM_FPS: ${STREAM_FPS:-20}
+      STREAM_WIDTH: ${STREAM_WIDTH:-1280}
+      STREAM_HEIGHT: ${STREAM_HEIGHT:-720}
+      RTSP_TRANSPORT: ${RTSP_TRANSPORT:-tcp}
+      HEALTH_PORT: ${HEALTH_PORT:-8080}
+      LOG_CSV_PATH: ${LOG_CSV_PATH:-/app/yolo_stream_sender_log.csv}
+      MEDIA_MTX_RTSP_URL: ${MEDIA_MTX_RTSP_URL:-}
+      UDP_IP: ${UDP_IP:-}
