@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run YOLO inference, push annotated frames to MediaMTX RTSP, and send UDP labels."""
+"""Run YOLO inference, publish annotated frames, and send UDP labels."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from ultralytics import YOLO
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="YOLO sender: RTSP stream publisher + UDP text detections"
+        description="YOLO sender: stream publisher + UDP text detections"
     )
     parser.add_argument("--udp-ip", default="127.0.0.1", help="Destination UDP IP")
     parser.add_argument("--udp-port", type=int, default=20000, help="Destination UDP port")
@@ -41,9 +41,20 @@ def parse_args() -> argparse.Namespace:
         help="Minimum seconds between UDP messages",
     )
     parser.add_argument(
+        "--publish-url",
+        default="rtmp://127.0.0.1:1935/livecam",
+        help="Generic MediaMTX publish URL (rtmp://... or rtsp://...).",
+    )
+    parser.add_argument(
+        "--publish-transport",
+        default="",
+        choices=["tcp", "udp", ""],
+        help="Transport for RTSP publishing. Ignored for RTMP. Overrides --rtsp-transport when set.",
+    )
+    parser.add_argument(
         "--rtsp-url",
         default="rtsp://127.0.0.1:8554/livecam",
-        help="MediaMTX RTSP publish URL",
+        help="Legacy RTSP publish URL fallback",
     )
     parser.add_argument(
         "--rtsp-transport",
@@ -122,7 +133,8 @@ def build_detection_payload(
     confidence: float,
     count: int,
     source: str,
-    rtsp_url: str,
+    stream_url: str,
+    stream_protocol: str,
     udp_ip: str,
     udp_port: int,
     timestamp: float,
@@ -133,15 +145,26 @@ def build_detection_payload(
         "confidence": round(confidence, 4),
         "count": int(count),
         "source": source,
-        "rtsp_url": rtsp_url,
+        "stream_url": stream_url,
+        "stream_protocol": stream_protocol,
+        "rtsp_url": stream_url if stream_protocol == "rtsp" else "",
         "udp_target": f"{udp_ip}:{udp_port}",
     }
     return json.dumps(payload, separators=(",", ":"))
 
 
-class RtspPublisher:
-    def __init__(self, rtsp_url: str, transport: str, fps: float) -> None:
-        self.rtsp_url = rtsp_url
+def stream_protocol_from_url(url: str) -> str:
+    lower = (url or "").lower()
+    if lower.startswith("rtsp://"):
+        return "rtsp"
+    if lower.startswith("rtmp://"):
+        return "rtmp"
+    return "rtmp"
+
+
+class StreamPublisher:
+    def __init__(self, publish_url: str, transport: str, fps: float) -> None:
+        self.publish_url = publish_url
         self.transport = transport
         self.fps = max(fps, 1.0)
         self._proc: Optional[subprocess.Popen] = None
@@ -149,6 +172,9 @@ class RtspPublisher:
 
     def _start(self, width: int, height: int) -> None:
         self.stop()
+        output_protocol = stream_protocol_from_url(self.publish_url)
+        gop = max(2, int(round(self.fps)))
+
         command = [
             "ffmpeg",
             "-loglevel",
@@ -167,17 +193,33 @@ class RtspPublisher:
             "-c:v",
             "libx264",
             "-preset",
-            "veryfast",
+            "ultrafast",
             "-tune",
             "zerolatency",
+            "-g",
+            f"{gop}",
+            "-keyint_min",
+            f"{gop}",
+            "-bf",
+            "0",
             "-pix_fmt",
             "yuv420p",
-            "-f",
-            "rtsp",
-            "-rtsp_transport",
-            self.transport,
-            self.rtsp_url,
         ]
+
+        if output_protocol == "rtmp":
+            command.extend([
+                "-f",
+                "flv",
+                self.publish_url,
+            ])
+        else:
+            command.extend([
+                "-f",
+                "rtsp",
+                "-rtsp_transport",
+                self.transport,
+                self.publish_url,
+            ])
 
         self._proc = subprocess.Popen(
             command,
@@ -258,6 +300,10 @@ def main() -> None:
     args = parse_args()
     csv_path = Path(args.log_csv)
 
+    publish_url = args.publish_url or args.rtsp_url
+    publish_transport = args.publish_transport or args.rtsp_transport
+    publish_protocol = stream_protocol_from_url(publish_url)
+
     model = YOLO(args.model)
     names = model.names
 
@@ -266,7 +312,7 @@ def main() -> None:
         raise RuntimeError(f"Could not open video source: {args.source}")
 
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    publisher = RtspPublisher(rtsp_url=args.rtsp_url, transport=args.rtsp_transport, fps=args.stream_fps)
+    publisher = StreamPublisher(publish_url=publish_url, transport=publish_transport, fps=args.stream_fps)
     health_server = start_health_server(args.health_port)
 
     stream_width = args.stream_width
@@ -276,7 +322,7 @@ def main() -> None:
 
     print(
         "Starting sender with "
-        f"model={args.model}, source={args.source}, rtsp={args.rtsp_url}, "
+        f"model={args.model}, source={args.source}, publish={publish_url} ({publish_protocol}), "
         f"udp={args.udp_ip}:{args.udp_port}"
     )
 
@@ -307,7 +353,8 @@ def main() -> None:
                         confidence=confidence,
                         count=count,
                         source=str(args.source),
-                        rtsp_url=args.rtsp_url,
+                        stream_url=publish_url,
+                        stream_protocol=publish_protocol,
                         udp_ip=args.udp_ip,
                         udp_port=args.udp_port,
                         timestamp=now,
